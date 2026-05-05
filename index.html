@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>オセロ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <section id="screenSetup" class="screen screen-setup" aria-label="対局設定">
+      <h1 class="title-main">オセロ</h1>
+      <div class="setup-card">
+        <div class="field">
+          <label for="modeSelect">対戦形式</label>
+          <select id="modeSelect" aria-label="対戦形式">
+            <option value="pvp">対人（同じ画面で交代）</option>
+            <option value="cpu">対CPU</option>
+          </select>
+        </div>
+        <div id="cpuOptionsField" class="field is-hidden">
+          <label for="cpuOrderSelect">あなたの手番</label>
+          <select id="cpuOrderSelect" aria-label="対CPU時の先行後攻">
+            <option value="first">先行（黒・先手）</option>
+            <option value="second">後攻（白・後手）</option>
+            <option value="random">おまかせ（開始時にランダム）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="setupRuleSelect">勝利条件</label>
+          <select id="setupRuleSelect" aria-label="勝利条件">
+            <option value="normal">通常（盤上の自色の数が多い方）</option>
+            <option value="flippedSelf">自色の石の「返り回数」合計が多い方</option>
+            <option value="flipsMade">ひっくり返した石の数の累計が多い方</option>
+          </select>
+        </div>
+        <button type="button" id="startGameBtn" class="btn-primary btn-block">ゲーム開始</button>
+      </div>
+    </section>
+
+    <section id="screenGame" class="screen screen-game is-hidden" aria-label="対局中">
+      <header class="game-header">
+        <div class="game-header-top">
+          <h1 class="title-main">オセロ</h1>
+          <button type="button" id="toMenuBtn" class="btn-secondary">メニューに戻る</button>
+        </div>
+        <p id="gameMeta" class="game-meta"></p>
+      </header>
+
+      <main class="main">
+        <aside class="panel">
+          <div class="status" id="status">黒の番です</div>
+          <button type="button" id="toggleScoresBtn" class="btn-toggle-scores" aria-expanded="true">カウントを非表示</button>
+          <label class="check-row game-check-row" for="showFlipCountToggle">
+            <input id="showFlipCountToggle" type="checkbox" checked />
+            石のひっくり返し回数を表示
+          </label>
+          <div class="scores" id="scoresPanel">
+            <div class="score-block">
+              <span class="piece black"></span>
+              <div>
+                <div class="score-label" id="blackLabel">黒</div>
+                <div class="score-values" id="blackScores"></div>
+              </div>
+            </div>
+            <div class="score-block">
+              <span class="piece white"></span>
+              <div>
+                <div class="score-label" id="whiteLabel">白</div>
+                <div class="score-values" id="whiteScores"></div>
+              </div>
+            </div>
+          </div>
+          <p class="hint" id="ruleHint"></p>
+        </aside>
+
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="オセロ盤"></div>
+        </div>
+      </main>
+    </section>
+  </div>
+  <script src="game.js" defer></script>
+</body>
+</html>
