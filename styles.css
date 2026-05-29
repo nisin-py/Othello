@@ -9,6 +9,7 @@
   --line: rgba(0, 0, 0, 0.35);
   --black: #121418;
   --white: #f0f2f5;
+  --gray-disc: #8a8f98;
   --legal: rgba(91, 159, 212, 0.45);
   --font: "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
@@ -96,6 +97,68 @@ body {
 .game-check-row {
   margin: 0 0 0.75rem;
   font-size: 0.82rem;
+}
+
+.setup-check-row {
+  margin: 0 0 0.75rem;
+}
+
+.lives-panel {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.lives-panel.is-hidden {
+  display: none;
+}
+
+.lives-panel:not(.is-hidden) {
+  min-height: 3.35rem;
+}
+
+.lives-panel.is-penalty {
+  border-color: rgba(255, 120, 120, 0.45);
+  background: rgba(120, 40, 40, 0.22);
+}
+
+.life-line {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.45rem;
+}
+
+.life-line + .life-line {
+  margin-top: 0.25rem;
+}
+
+.life-line-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.life-hearts {
+  letter-spacing: 0.08em;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.life-penalty-note {
+  min-height: 1.15rem;
+  margin-top: 0.45rem;
+  color: #ffb4b4;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.life-penalty-note.is-empty {
+  visibility: hidden;
 }
 
 .btn-block {
@@ -349,6 +412,15 @@ select:focus {
 
 .disc.white {
   background: radial-gradient(circle at 32% 32%, #fff, #d0d4dc);
+}
+
+.disc.gray {
+  background: radial-gradient(circle at 32% 32%, #a5a9b2, var(--gray-disc));
+}
+
+.disc.gray .disc-flip-count {
+  color: #1a1f2e;
+  text-shadow: 0 0 2px #fff, 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
 @media (max-width: 640px) {

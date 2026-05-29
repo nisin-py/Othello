@@ -175,19 +175,33 @@ function emptyFlipGrid() {
  * @param {Rule} rule
  * @param {GameMode} mode
  * @param {1|2 | null} humanColor 対人時は null
+ * @param {{ grayDiscs?: boolean, showLegalHints?: boolean, initialLives?: number }} [options]
  */
-function createState(rule, mode, humanColor) {
+function createState(rule, mode, humanColor, options = {}) {
+  const grayDiscs = Boolean(options.grayDiscs);
+  const showLegalHints = options.showLegalHints !== false;
+  const initialLives = Math.max(0, Number(options.initialLives) || 0);
   return {
     rule,
     mode,
     humanColor,
+    grayDiscs,
+    showLegalHints,
+    initialLives,
+    lives: { [BLACK]: initialLives, [WHITE]: initialLives },
     board: initialBoard(),
     discFlips: emptyFlipGrid(),
     current: /** @type {1|2} */ (BLACK),
     gameOver: false,
     winner: /** @type {null | 1 | 2 | 'draw'} */ (null),
     totalFlipsMade: { [BLACK]: 0, [WHITE]: 0 },
+    movesPlayed: 0,
   };
+}
+
+/** 先手（黒）の最初の番 — 灰色石・ライフ減少の猶予 */
+function isOpeningGraceTurn() {
+  return state.movesPlayed === 0 && state.current === BLACK;
 }
 
 /**
@@ -295,6 +309,9 @@ const modeSelect = document.getElementById("modeSelect");
 const cpuOptionsField = document.getElementById("cpuOptionsField");
 const cpuOrderSelect = document.getElementById("cpuOrderSelect");
 const setupRuleSelect = document.getElementById("setupRuleSelect");
+const livesSelect = document.getElementById("livesSelect");
+const grayDiscsToggle = document.getElementById("grayDiscsToggle");
+const showLegalHintsToggle = document.getElementById("showLegalHintsToggle");
 const showFlipCountToggle = document.getElementById("showFlipCountToggle");
 const startGameBtn = document.getElementById("startGameBtn");
 const toMenuBtn = document.getElementById("toMenuBtn");
@@ -309,8 +326,11 @@ const whiteScoresEl = document.getElementById("whiteScores");
 const blackLabelEl = document.getElementById("blackLabel");
 const whiteLabelEl = document.getElementById("whiteLabel");
 const ruleHintEl = document.getElementById("ruleHint");
-let showDiscFlipCount = true;
-let scoresCollapsed = false;
+const livesPanelEl = document.getElementById("livesPanel");
+let showDiscFlipCount = false;
+let scoresCollapsed = true;
+/** @type {null | 1 | 2} 直前の不正着手でライフを失ったプレイヤー */
+let lastLifePenaltyPlayer = null;
 
 // 左パネルのカウント表示（黒/白の詳細）を折りたたむ。
 function syncScoresVisibility() {
@@ -376,6 +396,7 @@ function applyCpuMoveNow(pick) {
     state.discFlips[fr][fc] += 1;
   }
   state.totalFlipsMade[mover] += flippedCount;
+  state.movesPlayed += 1;
   afterHumanOrInternalMove();
   return true;
 }
@@ -597,6 +618,7 @@ function handleAiWorkerMessage(e) {
     state.discFlips[fr][fc] += 1;
   }
   state.totalFlipsMade[mover] += flippedCount;
+  state.movesPlayed += 1;
   afterHumanOrInternalMove();
 }
 
@@ -626,6 +648,45 @@ function isHumanTurn() {
   return state.current === state.humanColor;
 }
 
+/** @param {1|2} player */
+function playerDisplayName(player) {
+  let name = playerName(player);
+  if (state.mode === "cpu") {
+    name = player === state.humanColor ? `${name}（あなた）` : `${name}（CPU）`;
+  }
+  return name;
+}
+
+/** 残りライフを ♥/♡ で表示 */
+function formatLifeHearts(remaining, max) {
+  const n = Math.max(0, remaining);
+  const cap = Math.max(0, max);
+  return "♥".repeat(n) + "♡".repeat(Math.max(0, cap - n));
+}
+
+function renderLivesPanel() {
+  if (!livesPanelEl) return;
+  const livesActive = state.initialLives > 0;
+  livesPanelEl.classList.toggle("is-hidden", !livesActive);
+  if (!livesActive) {
+    livesPanelEl.classList.remove("is-penalty");
+    livesPanelEl.innerHTML = "";
+    return;
+  }
+  livesPanelEl.classList.toggle("is-penalty", lastLifePenaltyPlayer != null && !state.gameOver);
+  const lines = [BLACK, WHITE].map((player) => {
+    const label = playerDisplayName(player);
+    const hearts = formatLifeHearts(state.lives[player], state.initialLives);
+    return `<div class="life-line"><span class="life-line-label">${label}</span><span class="life-hearts" aria-label="残りライフ ${state.lives[player]}">${hearts}</span></div>`;
+  });
+  const noteText =
+    lastLifePenaltyPlayer != null && !state.gameOver
+      ? `不正な手 — ${playerDisplayName(lastLifePenaltyPlayer)}がライフを1失いました`
+      : "";
+  const note = `<div class="life-penalty-note${noteText ? "" : " is-empty"}">${noteText || "\u00a0"}</div>`;
+  livesPanelEl.innerHTML = lines.join("") + note;
+}
+
 function showSetup() {
   cpuThinking = false;
   screenSetup.classList.remove("is-hidden");
@@ -643,15 +704,21 @@ function syncCpuOptionsVisibility() {
 }
 
 function updateGameMeta() {
+  const variants = [];
+  if (state.grayDiscs) variants.push("灰色石");
+  if (!state.showLegalHints) variants.push("ヒントなし");
+  if (state.initialLives > 0) variants.push(`ライフ ${state.initialLives}`);
+  const variantText = variants.length ? ` · ${variants.join(" · ")}` : "";
+
   if (state.mode === "pvp") {
-    gameMetaEl.textContent = `対人 · ルール: ${ruleLabels[state.rule]}`;
+    gameMetaEl.textContent = `対人 · ルール: ${ruleLabels[state.rule]}${variantText}`;
     return;
   }
   const side =
     state.humanColor === BLACK
       ? "あなた＝先手（黒）"
       : "あなた＝後攻（白）";
-  gameMetaEl.textContent = `対CPU（${side}）· ルール: ${ruleLabels[state.rule]}`;
+  gameMetaEl.textContent = `対CPU（${side}）· ルール: ${ruleLabels[state.rule]}${variantText}`;
 }
 
 function updateSideLabels() {
@@ -717,16 +784,18 @@ function renderScores() {
 
 function renderStatus() {
   ruleHintEl.textContent = ruleHints[state.rule];
+  renderLivesPanel();
   if (state.gameOver) {
     if (state.winner === "draw") {
       statusEl.textContent = "引き分け";
     } else {
       const wn = state.winner;
-      let name = playerName(wn);
-      if (state.mode === "cpu") {
-        name = wn === state.humanColor ? `${playerName(wn)}（あなた）` : `${playerName(wn)}（CPU）`;
+      const name = playerDisplayName(wn);
+      if (lastLifePenaltyPlayer === opposite(wn)) {
+        statusEl.textContent = `${playerDisplayName(lastLifePenaltyPlayer)} — ライフがなくなりました。${name}の勝ち`;
+      } else {
+        statusEl.textContent = `${name}の勝ち`;
       }
-      statusEl.textContent = `${name}の勝ち`;
     }
     renderScores();
     return;
@@ -737,12 +806,9 @@ function renderStatus() {
     renderScores();
     return;
   }
-  let turn = playerName(state.current);
-  if (state.mode === "cpu") {
-    turn =
-      state.current === state.humanColor
-        ? `${playerName(state.current)}（あなた）`
-        : `${playerName(state.current)}（CPU）`;
+  let turn = playerDisplayName(state.current);
+  if (lastLifePenaltyPlayer != null && lastLifePenaltyPlayer === state.current) {
+    turn += " — もう一度着手してください";
   }
   statusEl.textContent = `${turn}の番です`;
   renderScores();
@@ -752,6 +818,7 @@ function renderBoard() {
   boardEl.innerHTML = "";
   const legal = new Set();
   const canClickHuman = !state.gameOver && !cpuThinking && isHumanTurn();
+  const livesActive = state.initialLives > 0;
 
   if (canClickHuman) {
     for (let r = 0; r < 8; r++) {
@@ -773,7 +840,13 @@ function renderBoard() {
       const v = state.board[r][c];
       if (v !== EMPTY) {
         const disc = document.createElement("span");
-        disc.className = `disc ${v === BLACK ? "black" : "white"}`;
+        const discTone =
+          state.grayDiscs && !isOpeningGraceTurn()
+            ? "gray"
+            : v === BLACK
+              ? "black"
+              : "white";
+        disc.className = `disc ${discTone}`;
         // 設定に応じて「その石の返り回数」数字を描画する。
         if (showDiscFlipCount) {
           const n = state.discFlips[r][c];
@@ -786,9 +859,18 @@ function renderBoard() {
         cell.appendChild(disc);
       }
       const key = `${r},${c}`;
-      if (legal.has(key)) {
-        cell.classList.add("legal");
-        cell.addEventListener("click", () => onCellClick(r, c));
+      const isLegal = legal.has(key);
+      if (canClickHuman) {
+        if (livesActive) {
+          // ライフ制: どのマスも選べる（不正ならライフ減少）。
+          if (state.showLegalHints && isLegal) cell.classList.add("legal");
+          cell.addEventListener("click", () => onCellClick(r, c));
+        } else if (isLegal) {
+          if (state.showLegalHints) cell.classList.add("legal");
+          cell.addEventListener("click", () => onCellClick(r, c));
+        } else {
+          cell.disabled = true;
+        }
       } else {
         cell.disabled = true;
       }
@@ -809,19 +891,43 @@ function afterHumanOrInternalMove() {
   scheduleCpuIfNeeded();
 }
 
+/** @param {1|2} player */
+function applyLifePenalty(player) {
+  state.lives[player] -= 1;
+  lastLifePenaltyPlayer = player;
+  if (state.lives[player] <= 0) {
+    state.gameOver = true;
+    state.winner = opposite(player);
+    renderStatus();
+    renderBoard();
+    return;
+  }
+  renderStatus();
+  renderBoard();
+}
+
 function onCellClick(r, c) {
   if (state.gameOver || cpuThinking) return;
   if (!isHumanTurn()) return;
-  if (state.board[r][c] !== EMPTY) return;
-  const flips = getFlippableForMove(state.board, r, c, state.current);
-  if (flips.length === 0) return;
 
   const mover = state.current;
+  if (state.board[r][c] !== EMPTY) {
+    if (state.initialLives > 0 && !isOpeningGraceTurn()) applyLifePenalty(mover);
+    return;
+  }
+  const flips = getFlippableForMove(state.board, r, c, mover);
+  if (flips.length === 0) {
+    if (state.initialLives > 0 && !isOpeningGraceTurn()) applyLifePenalty(mover);
+    return;
+  }
+
+  lastLifePenaltyPlayer = null;
   const { flippedCount, toFlipCells } = applyMove(state.board, r, c, mover);
   for (const [fr, fc] of toFlipCells) {
     state.discFlips[fr][fc] += 1;
   }
   state.totalFlipsMade[mover] += flippedCount;
+  state.movesPlayed += 1;
 
   afterHumanOrInternalMove();
 }
@@ -907,9 +1013,13 @@ function startGameFromSetup() {
     else humanColor = Math.random() < 0.5 ? BLACK : WHITE;
   }
 
-  showDiscFlipCount = showFlipCountToggle ? Boolean(showFlipCountToggle.checked) : true;
+  showDiscFlipCount = showFlipCountToggle ? Boolean(showFlipCountToggle.checked) : false;
+  const grayDiscs = grayDiscsToggle ? Boolean(grayDiscsToggle.checked) : false;
+  const showLegalHints = showLegalHintsToggle ? Boolean(showLegalHintsToggle.checked) : true;
+  const initialLives = livesSelect ? Math.max(0, Number(livesSelect.value) || 0) : 0;
+  lastLifePenaltyPlayer = null;
   // 対局設定を確定して新しいゲーム状態を作る。
-  state = createState(rule, mode, humanColor);
+  state = createState(rule, mode, humanColor, { grayDiscs, showLegalHints, initialLives });
   fixTurnIfCurrentCannotMove();
   cpuThinking = false;
   updateGameMeta();
@@ -923,6 +1033,7 @@ function startGameFromSetup() {
 function backToMenu() {
   cpuSession += 1;
   destroyAiWorker();
+  lastLifePenaltyPlayer = null;
   showSetup();
 }
 

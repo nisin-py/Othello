@@ -15,15 +15,15 @@
           <label for="modeSelect">対戦形式</label>
           <select id="modeSelect" aria-label="対戦形式">
             <option value="pvp">対人（同じ画面で交代）</option>
-            <option value="cpu">対CPU</option>
+            <option value="cpu" selected>対CPU</option>
           </select>
         </div>
-        <div id="cpuOptionsField" class="field is-hidden">
+        <div id="cpuOptionsField" class="field">
           <label for="cpuOrderSelect">あなたの手番</label>
           <select id="cpuOrderSelect" aria-label="対CPU時の先行後攻">
             <option value="first">先行（黒・先手）</option>
             <option value="second">後攻（白・後手）</option>
-            <option value="random">おまかせ（開始時にランダム）</option>
+            <option value="random" selected>おまかせ（開始時にランダム）</option>
           </select>
         </div>
         <div class="field">
@@ -34,6 +34,24 @@
             <option value="flipsMade">ひっくり返した石の数の累計が多い方</option>
           </select>
         </div>
+        <div class="field">
+          <label for="livesSelect">ライフ</label>
+          <select id="livesSelect" aria-label="ライフ数">
+            <option value="0" selected>なし</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <label class="check-row setup-check-row" for="grayDiscsToggle">
+          <input id="grayDiscsToggle" type="checkbox" />
+          灰色石（盤上で自他の区別なし）
+        </label>
+        <label class="check-row setup-check-row" for="showLegalHintsToggle">
+          <input id="showLegalHintsToggle" type="checkbox" checked />
+          置けるマスのヒントを表示
+        </label>
         <button type="button" id="startGameBtn" class="btn-primary btn-block">ゲーム開始</button>
       </div>
     </section>
@@ -50,12 +68,13 @@
       <main class="main">
         <aside class="panel">
           <div class="status" id="status">黒の番です</div>
-          <button type="button" id="toggleScoresBtn" class="btn-toggle-scores" aria-expanded="true">カウントを非表示</button>
+          <div id="livesPanel" class="lives-panel is-hidden" aria-live="polite"></div>
+          <button type="button" id="toggleScoresBtn" class="btn-toggle-scores" aria-expanded="false">カウントを表示</button>
           <label class="check-row game-check-row" for="showFlipCountToggle">
-            <input id="showFlipCountToggle" type="checkbox" checked />
+            <input id="showFlipCountToggle" type="checkbox" />
             石のひっくり返し回数を表示
           </label>
-          <div class="scores" id="scoresPanel">
+          <div class="scores is-collapsed" id="scoresPanel">
             <div class="score-block">
               <span class="piece black"></span>
               <div>
